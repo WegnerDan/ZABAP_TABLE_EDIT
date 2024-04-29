@@ -83,13 +83,18 @@ CLASS zcl_zabap_table_fields IMPLEMENTATION.
       IF NOT additional_field->type IS INSTANCE OF cl_abap_elemdescr. CONTINUE. ENDIF.
 
       DATA(elemdescr) = CAST cl_abap_elemdescr( additional_field->type ).
-      DATA(ddic_field) = elemdescr->get_ddic_field( ).
-
-      DATA(field) = CORRESPONDING lvc_s_fcat( ddic_field MAPPING key = keyflag  dd_roll = rollname ).
+      IF elemdescr->is_ddic_type( ).
+        DATA(ddic_field) = elemdescr->get_ddic_field( ).
+        DATA(field) = CORRESPONDING lvc_s_fcat( ddic_field MAPPING key = keyflag dd_roll = rollname ).
+      ELSE.
+        field-outputlen = elemdescr->output_length.
+        field-inttype  = elemdescr->type_kind.
+      ENDIF.
       field-fieldname = additional_field->name.
       field-tabname  = 1.
       field-col_pos = index.
       APPEND field TO field_catalogue.
+      FREE field.
 
       index = index + 1.
     ENDLOOP.
@@ -100,7 +105,7 @@ CLASS zcl_zabap_table_fields IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD get_keys_structure.
-    DATA(components) = VALUE cl_abap_structdescr=>component_table(  ).
+    DATA(components) = VALUE cl_abap_structdescr=>component_table( ).
     " Don't use secondary keys because they don't preserve field order
     LOOP AT field_catalogue REFERENCE INTO DATA(field) WHERE key = abap_true.
       DATA(name) = COND #( WHEN field->dd_roll IS INITIAL THEN |{ table_name }-{ field->fieldname }| ELSE |{ field->dd_roll }| ).
@@ -119,7 +124,7 @@ CLASS zcl_zabap_table_fields IMPLEMENTATION.
 
   METHOD get_table_with_add_fields.
     DATA(keys) = VALUE abap_keydescr_tab( ).
-    DATA(components) = VALUE cl_abap_structdescr=>component_table(  ).
+    DATA(components) = VALUE cl_abap_structdescr=>component_table( ).
 
     LOOP AT field_catalogue REFERENCE INTO DATA(field).
       DATA(name) = COND #( WHEN field->dd_roll IS INITIAL THEN |{ table_name }-{ field->fieldname }| ELSE |{ field->dd_roll }| ).
